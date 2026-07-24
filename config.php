@@ -11,8 +11,8 @@
 // Hindari akses langsung ke file konfigurasi jika perlu (opsional)
 // Pengesetan kredensial database
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_USER', 'user_inquiry');
+define('DB_PASS', 'password_rahasia_123');
 define('DB_NAME', 'db_inquiry');
 define('DB_PORT', 3306);
 
