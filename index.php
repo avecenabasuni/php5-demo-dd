@@ -1,204 +1,74 @@
 <?php
 /**
- * Landing Page & Form Inquiry - PHP 5 Compatible
- * 
- * ALASAN KOMPATIBILITAS PHP 5:
- * 1. Menggunakan require_once dengan path standar.
- * 2. Menggunakan `array()` untuk penampung error dan data form (BUKAN `[]`).
- * 3. Menggunakan `isset($var) ? $var : $default` (BUKAN null coalescing operator `??`).
- * 4. Output HTML di-escape secara ketat menggunakan `escape_html()` (htmlspecialchars ENT_QUOTES).
- * 5. Menggunakan `header("Location: thanks.php")` + `exit;` untuk pengalihan halaman setelah PRG (Post/Redirect/Get).
+ * SIAKAD - Router / Front Controller - PHP 5 Compatible
+ *
+ * Semua request masuk ke file ini, lalu di-route ke pages/ sesuai ?page=xxx
  */
-
 require_once 'config.php';
 require_once 'functions.php';
 
-// Inisialisasi variabel penampung data & error
-// PHP 5: Harus menggunakan array(), bukan []
-$errors    = array();
-$form_data = array(
-    'nama'    => '',
-    'email'   => '',
-    'telepon' => '',
-    'pesan'   => ''
-);
+// PHP 5: isset() ? : bukan ??
+$page = isset($_GET['page']) ? $_GET['page'] : '';
 
-// Memproses saat formulir di-submit (POST Request)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Menyimpan input user ke array form_data untuk sticky form (tetap tampil jika ada error)
-    // PHP 5: Menggunakan ternary operator isset() ? : karena ?? belum didukung PHP 5
-    $form_data['nama']    = isset($_POST['nama'])    ? $_POST['nama']    : '';
-    $form_data['email']   = isset($_POST['email'])   ? $_POST['email']   : '';
-    $form_data['telepon'] = isset($_POST['telepon']) ? $_POST['telepon'] : '';
-    $form_data['pesan']   = isset($_POST['pesan'])   ? $_POST['pesan']   : '';
-
-    // Jalankan validasi server-side
-    $errors = validate_inquiry($form_data);
-
-    // Jika tidak ada kesalahan validasi, simpan data ke database
-    if (empty($errors)) {
-        $saved = save_inquiry($db_conn, $form_data);
-
-        if ($saved) {
-            // Tutup koneksi database sebelum redirect (opsional tapi baik untuk manajemen resource)
-            mysqli_close($db_conn);
-            
-            // Redirect ke halaman terima kasih (Post/Redirect/Get Pattern)
-            header("Location: thanks.php");
-            exit;
-        } else {
-            $errors['general'] = "Gagal menyimpan data ke database. Silakan coba beberapa saat lagi.";
-        }
+// Jika sudah login dan mengakses halaman login/kosong → redirect ke dashboard
+if (empty($page) || $page === 'login') {
+    if (is_logged_in()) {
+        redirect('index.php?page=dashboard');
     }
 }
-?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layanan Solusi Bisnis Digital | Inquiry Form</title>
-    <!-- Favicon Inline SVG (Pencegahan Error 404) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
 
-    <!-- Header Navbar -->
-    <header class="navbar">
-        <div class="container">
-            <a href="index.php" class="brand">
-                <span>⚡</span> ProSolusi
-            </a>
-        </div>
-    </header>
+// Jika belum ada page, default ke login
+if (empty($page)) {
+    $page = 'login';
+}
 
-    <!-- Main Content Grid -->
-    <main class="main-wrapper">
-        <div class="container">
-            <div class="hero-grid">
-                
-                <!-- Hero Content (Kiri) -->
-                <section class="hero-content">
-                    <h1>Tingkatkan Efisiensi Bisnis Anda Bersama <span class="gradient-text">ProSolusi</span></h1>
-                    <p>Kami menghadirkan solusi teknologi terintegrasi yang fleksibel, aman, dan handal untuk mendukung pertumbuhan bisnis Anda di era digital.</p>
-                    
-                    <div class="feature-list">
-                        <div class="feature-item">
-                            <div class="feature-icon">✓</div>
-                            <span>Implementasi Cepat & Terstruktur</span>
-                        </div>
-                        <div class="feature-item">
-                            <div class="feature-icon">✓</div>
-                            <span>Dukungan Lingkungan Legacy (PHP 5) & Modern</span>
-                        </div>
-                        <div class="feature-item">
-                            <div class="feature-icon">✓</div>
-                            <span>Keamanan Data Terjamin & Bebas Kerentanan SQLi/XSS</span>
-                        </div>
-                    </div>
-                </section>
+// Halaman publik (tidak perlu login)
+$public_pages = array('login');
 
-                <!-- Form Section (Kanan) -->
-                <section class="form-card">
-                    <div class="form-header">
-                        <h2>Kirim Pertanyaan / Inquiry</h2>
-                        <p>Isi formulir di bawah ini dan tim ahli kami akan segera menghubungi Anda.</p>
-                    </div>
+// Halaman yang memerlukan login
+$protected_pages = array(
+    'dashboard', 'mahasiswa', 'dosen', 'matakuliah',
+    'krs', 'nilai', 'transkrip', 'settings', 'logout'
+);
 
-                    <!-- Alert Box Umum jika ada error -->
-                    <?php if (!empty($errors)): ?>
-                        <div class="alert-box alert-danger">
-                            <strong>Terjadi Kesalahan:</strong> Mohon periksa kembali input formulir Anda di bawah ini.
-                        </div>
-                    <?php endif; ?>
+// Semua halaman yang diizinkan
+$allowed_pages = array_merge($public_pages, $protected_pages);
 
-                    <!-- Form Inquiry -->
-                    <!-- novalidate digunakan agar validasi server-side dapat diuji sepenuhnya -->
-                    <form action="index.php" method="POST" novalidate>
-                        
-                        <!-- Field Nama -->
-                        <div class="form-group">
-                            <label for="nama" class="form-label">Nama Lengkap <span class="required">*</span></label>
-                            <input 
-                                type="text" 
-                                id="nama" 
-                                name="nama" 
-                                class="form-control <?php echo isset($errors['nama']) ? 'is-invalid' : ''; ?>" 
-                                value="<?php echo escape_html($form_data['nama']); ?>" 
-                                placeholder="Contoh: Budi Santoso"
-                            >
-                            <?php if (isset($errors['nama'])): ?>
-                                <span class="error-text"><?php echo escape_html($errors['nama']); ?></span>
-                            <?php endif; ?>
-                        </div>
+// Validasi halaman
+if (!in_array($page, $allowed_pages)) {
+    set_flash('error', 'Halaman tidak ditemukan.');
+    redirect('index.php?page=dashboard');
+}
 
-                        <!-- Field Email -->
-                        <div class="form-group">
-                            <label for="email" class="form-label">Alamat Email <span class="required">*</span></label>
-                            <input 
-                                type="email" 
-                                id="email" 
-                                name="email" 
-                                class="form-control <?php echo isset($errors['email']) ? 'is-invalid' : ''; ?>" 
-                                value="<?php echo escape_html($form_data['email']); ?>" 
-                                placeholder="nama@perusahaan.com"
-                            >
-                            <?php if (isset($errors['email'])): ?>
-                                <span class="error-text"><?php echo escape_html($errors['email']); ?></span>
-                            <?php endif; ?>
-                        </div>
+// Cek login untuk halaman protected
+if (in_array($page, $protected_pages) && !is_logged_in()) {
+    set_flash('error', 'Silakan login terlebih dahulu.');
+    redirect('index.php?page=login');
+}
 
-                        <!-- Field Telepon -->
-                        <div class="form-group">
-                            <label for="telepon" class="form-label">Nomor Telepon <span class="required">*</span></label>
-                            <input 
-                                type="text" 
-                                id="telepon" 
-                                name="telepon" 
-                                class="form-control <?php echo isset($errors['telepon']) ? 'is-invalid' : ''; ?>" 
-                                value="<?php echo escape_html($form_data['telepon']); ?>" 
-                                placeholder="Contoh: 081234567890"
-                            >
-                            <?php if (isset($errors['telepon'])): ?>
-                                <span class="error-text"><?php echo escape_html($errors['telepon']); ?></span>
-                            <?php endif; ?>
-                        </div>
+// Render halaman
+$page_file = 'pages/' . $page . '.php';
 
-                        <!-- Field Pesan -->
-                        <div class="form-group">
-                            <label for="pesan" class="form-label">Pesan / Inquiry <span class="required">*</span></label>
-                            <textarea 
-                                id="pesan" 
-                                name="pesan" 
-                                class="form-control <?php echo isset($errors['pesan']) ? 'is-invalid' : ''; ?>" 
-                                placeholder="Tuliskan kebutuhan atau pertanyaan Anda di sini..."
-                            ><?php echo escape_html($form_data['pesan']); ?></textarea>
-                            <?php if (isset($errors['pesan'])): ?>
-                                <span class="error-text"><?php echo escape_html($errors['pesan']); ?></span>
-                            <?php endif; ?>
-                        </div>
+if (!file_exists($page_file)) {
+    set_flash('error', 'File halaman tidak ditemukan.');
+    redirect('index.php?page=login');
+}
 
-                        <!-- Submit Button -->
-                        <button type="submit" class="btn-submit">Kirim Inquiry Sekarang</button>
-                    </form>
-                </section>
-
-            </div>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <p>&copy; <?php echo date('Y'); ?> ProSolusi. Kompatibel dengan Lingkungan PHP 5.x Legacy.</p>
-        </div>
-    </footer>
-
-</body>
-</html>
+// Halaman login & logout tanpa layout (standalone)
+if ($page === 'login' || $page === 'logout') {
+    require_once $page_file;
+} else {
+    // Halaman dengan layout sidebar
+    require_once 'templates/header.php';
+    echo '<div class="app-layout">';
+    require_once 'templates/sidebar.php';
+    echo '<div class="main-content">';
+    require_once 'templates/topbar.php';
+    echo '<div class="content-area">';
+    echo display_flash_messages();
+    require_once $page_file;
+    echo '</div>';
+    require_once 'templates/footer.php';
+    echo '</div>';
+    echo '</div>';
+}
