@@ -28,7 +28,7 @@ $public_pages = array('login');
 // Halaman yang memerlukan login
 $protected_pages = array(
     'dashboard', 'mahasiswa', 'dosen', 'matakuliah',
-    'krs', 'nilai', 'transkrip', 'settings', 'demo_errors', 'logout'
+    'krs', 'nilai', 'transkrip', 'settings', 'demo_errors', 'traffic_control', 'logout'
 );
 
 // Semua halaman yang diizinkan

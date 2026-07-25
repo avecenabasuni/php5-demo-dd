@@ -47,6 +47,9 @@ $user_initial = strtoupper(substr($user_nama, 0, 1));
             <a href="index.php?page=demo_errors" class="sidebar-link <?php echo ($current_page === 'demo_errors') ? 'active' : ''; ?>">
                 <span class="nav-icon">🧪</span> Demo Errors
             </a>
+            <a href="index.php?page=traffic_control" class="sidebar-link <?php echo ($current_page === 'traffic_control') ? 'active' : ''; ?>">
+                <span class="nav-icon">🚀</span> Traffic Simulator
+            </a>
         <?php endif; ?>
 
         <?php if ($user_role === 'dosen'): ?>

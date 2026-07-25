@@ -11,7 +11,8 @@ $page_titles = array(
     'nilai'      => array('title' => 'Input Nilai',      'desc' => 'Input nilai mahasiswa'),
     'transkrip'  => array('title' => 'Transkrip Nilai',  'desc' => 'Rekap nilai & IPK'),
     'settings'   => array('title' => 'Feature Flags',    'desc' => 'Pengaturan fitur sistem'),
-    'demo_errors' => array('title' => 'Demo Error Simulator', 'desc' => 'Trigger error untuk monitoring Datadog')
+    'demo_errors' => array('title' => 'Demo Error Simulator', 'desc' => 'Trigger error untuk monitoring Datadog'),
+    'traffic_control' => array('title' => 'Traffic Simulator', 'desc' => 'Simulasi aktivitas pengguna & error load')
 );
 
 $current_page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';

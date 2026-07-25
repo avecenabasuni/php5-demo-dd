@@ -1,6 +1,6 @@
 # SIAKAD - Sistem Informasi Akademik Perkuliahan (PHP 5 Compatible)
 
-Aplikasi web Sistem Informasi Akademik (SIAKAD) sederhana namun fungsional lengkap, dibangun dari *scratch* dengan **PHP 5 murni** tanpa framework. Dilengkapi dengan **Datadog monitoring** dan **error simulator** untuk demo observability.
+Aplikasi web Sistem Informasi Akademik (SIAKAD) sederhana namun fungsional lengkap, dibangun dari *scratch* dengan **PHP 5 murni** tanpa framework. Dilengkapi dengan **Datadog monitoring**, **error simulator**, dan **user traffic generator** untuk demo observability.
 
 ---
 
@@ -18,6 +18,7 @@ Aplikasi web Sistem Informasi Akademik (SIAKAD) sederhana namun fungsional lengk
 | Transkrip / KHS | Rekap nilai + IPK otomatis | Mahasiswa |
 | Feature Flags | Toggle fitur on/off tanpa ubah kode | Admin |
 | **Demo Errors** | **Trigger error untuk demo Datadog** | **Admin** |
+| **Traffic Simulator** | **Simulasi aktivitas pengguna & error load** | **Admin / CLI** |
 | Flash Messages | Notifikasi sukses/error/warning | Semua |
 
 ---
@@ -51,7 +52,12 @@ php5-demo-dd/
 │   ├── nilai.php           # Input Nilai (Dosen)
 │   ├── transkrip.php       # Transkrip / KHS (Mahasiswa)
 │   ├── settings.php        # Feature Flags (Admin)
-│   └── demo_errors.php     # 🆕 Error Simulator (Datadog Demo)
+│   ├── demo_errors.php     # 🆕 Error Simulator (Datadog Demo)
+│   └── traffic_control.php # 🆕 Web UI Traffic Control Panel
+│
+├── scripts/
+│   ├── traffic_generator.php # 🆕 PHP CLI Traffic Simulator Core
+│   └── run_traffic.sh        # 🆕 Bash Launcher (background, stop, status)
 │
 ├── logs/
 │   └── .gitkeep            # Direktori log (di-ignore oleh git)
@@ -100,6 +106,33 @@ sudo chown www-data:www-data /var/log/siakad
 
 ---
 
+## 🚀 User Traffic Simulator
+
+Simulator trafik digunakan untuk mensimulasikan penggunaan nyata (Admin, Dosen, Mahasiswa), pemicu error, dan kegagalan login secara otomatis.
+
+### Cara 1: Menjalankan via Web UI
+1. Login sebagai `admin` / `admin123`.
+2. Klik **🚀 Traffic Simulator** di sidebar.
+3. Pilih Mode (`Normal`, `Heavy`, atau `Error Spike`) & Jumlah Iterasi.
+4. Klik **Jalankan Simulasi Sekarang**.
+
+### Cara 2: Menjalankan via Terminal Linux (CLI)
+```bash
+# Jalankan 50 iterasi trafik di foreground:
+php scripts/traffic_generator.php --url=http://localhost/php5-demo-dd/index.php --mode=normal --count=50 --verbose
+
+# Jalankan terus-menerus di background (Continuous Mode):
+bash scripts/run_traffic.sh --continuous
+
+# Cek status background process:
+bash scripts/run_traffic.sh --status
+
+# Hentikan background process:
+bash scripts/run_traffic.sh --stop
+```
+
+---
+
 ## 📊 Datadog Integration
 
 ### Arsitektur Monitoring
@@ -141,12 +174,6 @@ Halaman **Demo Errors** (`?page=demo_errors`) menyediakan 10 skenario error yang
 | 9 | **Feature Flag** | Access disabled feature | WARNING log + blocked counter |
 | 10 | **App Errors** | Business logic failures | ERROR logs (3 scenarios) |
 
-### Cara Demo:
-1. Login sebagai `admin` / `admin123`
-2. Klik **🧪 Demo Errors** di sidebar
-3. Trigger error satu per satu → cek di Datadog Logs + Metrics
-4. Gunakan **Feature Flags** untuk menonaktifkan fitur → trigger Flag Block
-
 ---
 
 ## 📈 Custom Metrics (DogStatsD)
@@ -166,6 +193,7 @@ Metrics yang dikirim via UDP ke Datadog Agent port 8125:
 | `siakad.page.load_time` | Timing | Response time per halaman |
 | `siakad.feature_flag.blocked` | Counter | Akses fitur yang disabled |
 | `siakad.demo.error_triggered` | Counter | Error simulator triggered |
+| `siakad.traffic_sim.web_triggered` | Counter | Simulator dipanggil dari Web UI |
 | `siakad.memory.usage_bytes` | Gauge | Memory usage saat spike |
 
 ---
@@ -198,14 +226,6 @@ Setiap log entry adalah **JSON** satu baris, siap di-parse Datadog:
   }
 }
 ```
-
-**Auto-logged events:**
-- Request start/end (dengan response time)
-- Login success/failure
-- Database errors & slow queries (> 500ms)
-- Feature flag checks
-- PHP errors (Notice, Warning, Fatal)
-- Fatal errors via shutdown handler
 
 ---
 
