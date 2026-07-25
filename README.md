@@ -53,10 +53,6 @@ php5-demo-dd/
 │   ├── settings.php        # Feature Flags (Admin)
 │   └── demo_errors.php     # 🆕 Error Simulator (Datadog Demo)
 │
-├── datadog/
-│   ├── setup_datadog.sh    # 🆕 Script install Datadog Agent
-│   └── dashboard.json      # 🆕 Template Datadog Dashboard (importable)
-│
 ├── logs/
 │   └── .gitkeep            # Direktori log (di-ignore oleh git)
 │
@@ -125,32 +121,6 @@ sudo chown www-data:www-data /var/log/siakad
 │  └──────────┘              └──────────────────┘     │
 └─────────────────────────────────────────────────────┘
 ```
-
-### Instalasi Datadog Agent
-
-```bash
-# Di VM Ubuntu, jalankan:
-cd /var/www/html/php5-demo-dd
-sudo bash datadog/setup_datadog.sh <DD_API_KEY> datadoghq.com
-
-# Verifikasi:
-sudo datadog-agent status
-```
-
-Script `setup_datadog.sh` secara otomatis:
-1. Membuat direktori log `/var/log/siakad/`
-2. Install Datadog Agent via official script
-3. Konfigurasi log collection (SIAKAD JSON logs)
-4. Konfigurasi Apache integration (access/error logs)
-5. Konfigurasi MySQL integration (query metrics)
-6. Membuat MySQL user `datadog` untuk monitoring
-
-### Import Dashboard
-
-Dashboard template tersedia di `datadog/dashboard.json`. Import via Datadog UI:
-1. Buka https://app.datadoghq.com/dashboard/lists
-2. Klik "New Dashboard" → "Import Dashboard JSON"
-3. Paste isi file `datadog/dashboard.json`
 
 ---
 
