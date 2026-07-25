@@ -63,7 +63,7 @@ function print_log($msg, $verbose_only = false) {
 }
 
 /**
- * Class HTTP Client sederhana menggunakan cURL dengan Session Cookie
+ * Class HTTP Client sederhana (Mendukung cURL maupun stream fallback)
  */
 class SimpleHttpClient {
     var $cookie_file;
@@ -74,6 +74,14 @@ class SimpleHttpClient {
     }
 
     function request($url, $method = 'GET', $post_data = array()) {
+        if (function_exists('curl_init')) {
+            return $this->request_curl($url, $method, $post_data);
+        } else {
+            return $this->request_stream($url, $method, $post_data);
+        }
+    }
+
+    function request_curl($url, $method = 'GET', $post_data = array()) {
         $ch = curl_init();
         
         if ($method === 'POST') {
@@ -120,6 +128,74 @@ class SimpleHttpClient {
         );
     }
 
+    function request_stream($url, $method = 'GET', $post_data = array()) {
+        $headers = array("User-Agent: SIAKAD-TrafficSim/1.0 (Datadog Demo Generator)");
+        
+        // Membaca cookie yang tersimpan
+        $cookies = array();
+        if (file_exists($this->cookie_file)) {
+            $cookie_raw = @file_get_contents($this->cookie_file);
+            if (!empty($cookie_raw)) {
+                $lines = explode("\n", $cookie_raw);
+                foreach ($lines as $line) {
+                    $parts = explode("\t", trim($line));
+                    if (count($parts) >= 7) {
+                        $cookies[] = $parts[5] . '=' . $parts[6];
+                    }
+                }
+            }
+        }
+        if (!empty($cookies)) {
+            $headers[] = "Cookie: " . implode('; ', $cookies);
+        }
+
+        $opts = array(
+            'http' => array(
+                'method' => $method,
+                'header' => implode("\r\n", $headers),
+                'timeout' => 15,
+                'ignore_errors' => true
+            )
+        );
+
+        if ($method === 'POST') {
+            $content = http_build_query($post_data);
+            $opts['http']['header'] .= "\r\nContent-Type: application/x-www-form-urlencoded";
+            $opts['http']['header'] .= "\r\nContent-Length: " . strlen($content);
+            $opts['http']['content'] = $content;
+        } else if (!empty($post_data)) {
+            $url .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($post_data);
+        }
+
+        $context = stream_context_create($opts);
+        $start = microtime(true);
+        $response = @file_get_contents($url, false, $context);
+        $duration = round((microtime(true) - $start) * 1000, 2);
+
+        $http_code = 200;
+        if (isset($http_response_header) && is_array($http_response_header)) {
+            foreach ($http_response_header as $hdr) {
+                if (preg_match('/HTTP\/\d\.\d\s+(\d+)/i', $hdr, $matches)) {
+                    $http_code = (int)$matches[1];
+                }
+                if (preg_match('/Set-Cookie:\s*([^;]+)/i', $hdr, $matches)) {
+                    $c_pair = trim($matches[1]);
+                    $c_name = substr($c_pair, 0, strpos($c_pair, '='));
+                    $c_val  = substr($c_pair, strpos($c_pair, '=') + 1);
+                    @file_put_contents($this->cookie_file, "domain\tTRUE\t/\tFALSE\t0\t$c_name\t$c_val\n", FILE_APPEND);
+                }
+            }
+        }
+
+        return array(
+            'success'   => ($http_code >= 200 && $http_code < 400),
+            'http_code' => $http_code,
+            'duration'  => $duration,
+            'body'      => ($response !== false) ? $response : '',
+            'error'     => ($response === false) ? 'HTTP Request Failed' : ''
+        );
+    }
+
     function cleanup() {
         if (file_exists($this->cookie_file)) {
             @unlink($this->cookie_file);
@@ -148,6 +224,7 @@ print_log("Target URL : " . $options['url']);
 print_log("Mode       : " . strtoupper($options['mode']));
 print_log("Iterasi    : " . ($options['count'] === 0 ? 'UNLIMITED' : $options['count']));
 print_log("Delay Max  : " . $options['delay'] . " detik");
+print_log("HTTP Engine: " . (function_exists('curl_init') ? 'cURL Extension' : 'PHP Stream Fallback'));
 print_log("----------------------------------------------");
 
 $iteration = 0;
