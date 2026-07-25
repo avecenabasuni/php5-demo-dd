@@ -1,0 +1,4 @@
+# SIAKAD Logs Directory
+# Log files di-generate oleh logger.php
+# File ini ada agar direktori ter-track di git
+# Actual log files di-ignore via .gitignore

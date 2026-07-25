@@ -10,7 +10,8 @@ $page_titles = array(
     'krs'        => array('title' => 'Kartu Rencana Studi', 'desc' => 'Pendaftaran & manajemen KRS'),
     'nilai'      => array('title' => 'Input Nilai',      'desc' => 'Input nilai mahasiswa'),
     'transkrip'  => array('title' => 'Transkrip Nilai',  'desc' => 'Rekap nilai & IPK'),
-    'settings'   => array('title' => 'Feature Flags',    'desc' => 'Pengaturan fitur sistem')
+    'settings'   => array('title' => 'Feature Flags',    'desc' => 'Pengaturan fitur sistem'),
+    'demo_errors' => array('title' => 'Demo Error Simulator', 'desc' => 'Trigger error untuk monitoring Datadog')
 );
 
 $current_page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';

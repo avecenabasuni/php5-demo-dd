@@ -15,6 +15,9 @@
 // Cukup panggil session_start() langsung; jika sudah aktif, PHP 5 akan memberi notice saja
 @session_start();
 
+// Load structured logger & DogStatsD client
+require_once dirname(__FILE__) . '/logger.php';
+
 // Konfigurasi Aplikasi
 define('APP_NAME', 'SIAKAD');
 define('APP_VERSION', '1.0.0');

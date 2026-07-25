@@ -170,8 +170,26 @@ function attempt_login($conn, $username, $password) {
             }
         }
 
+        // Datadog: Log login berhasil + increment metric
+        log_info('Login successful', array(
+            'username' => $username,
+            'role'     => $user['role'],
+            'user_id'  => $user['id']
+        ));
+        dd_increment('siakad.login.success', array('role:' . $user['role']));
+        dd_increment('siakad.login.attempt', array('result:success'));
+
         return true;
     }
+
+    // Datadog: Log login gagal + increment metric
+    log_warning('Login failed', array(
+        'username' => $username,
+        'reason'   => 'invalid_credentials'
+    ));
+    dd_increment('siakad.login.failure', array('reason:invalid_credentials'));
+    dd_increment('siakad.login.attempt', array('result:failure'));
+
     return false;
 }
 
@@ -198,14 +216,28 @@ function do_logout() {
  * Cek apakah suatu feature flag aktif
  */
 function is_feature_enabled($conn, $flag_name) {
-    $flag_name = mysqli_real_escape_string($conn, $flag_name);
-    $sql = "SELECT is_enabled FROM feature_flags WHERE flag_name = '$flag_name' LIMIT 1";
+    $flag_name_escaped = mysqli_real_escape_string($conn, $flag_name);
+    $sql = "SELECT is_enabled FROM feature_flags WHERE flag_name = '$flag_name_escaped' LIMIT 1";
     $result = mysqli_query($conn, $sql);
     if ($result && mysqli_num_rows($result) === 1) {
         $row = mysqli_fetch_assoc($result);
-        return (int)$row['is_enabled'] === 1;
+        $enabled = (int)$row['is_enabled'] === 1;
+
+        // Datadog: Log feature flag check
+        log_debug('Feature flag checked', array(
+            'flag_name' => $flag_name,
+            'enabled'   => $enabled
+        ));
+
+        // Jika flag OFF, log warning dan kirim metric
+        if (!$enabled) {
+            dd_increment('siakad.feature_flag.blocked', array('flag:' . $flag_name));
+        }
+
+        return $enabled;
     }
     // Default: disabled jika flag tidak ditemukan
+    log_warning('Feature flag not found', array('flag_name' => $flag_name));
     return false;
 }
 
@@ -328,8 +360,32 @@ function count_rows($conn, $table, $where) {
  * Ambil satu baris dari query
  */
 function fetch_one($conn, $sql) {
+    $start = microtime(true);
     $result = mysqli_query($conn, $sql);
-    if ($result && mysqli_num_rows($result) > 0) {
+    $duration_ms = round((microtime(true) - $start) * 1000, 2);
+
+    // Datadog: Log query timing
+    dd_timing('siakad.db.query_time', $duration_ms, array('type:fetch_one'));
+
+    // Log slow queries (> 500ms)
+    if ($duration_ms > 500) {
+        log_warning('Slow DB query detected', array(
+            'query'       => substr($sql, 0, 200),
+            'duration_ms' => $duration_ms
+        ));
+    }
+
+    // Log DB errors
+    if (!$result) {
+        log_error('Database query failed', array(
+            'query' => substr($sql, 0, 200),
+            'error' => mysqli_error($conn)
+        ));
+        dd_increment('siakad.db.error', array('type:fetch_one'));
+        return null;
+    }
+
+    if (mysqli_num_rows($result) > 0) {
         return mysqli_fetch_assoc($result);
     }
     return null;
@@ -339,12 +395,34 @@ function fetch_one($conn, $sql) {
  * Ambil semua baris dari query
  */
 function fetch_all($conn, $sql) {
+    $start = microtime(true);
     $result = mysqli_query($conn, $sql);
+    $duration_ms = round((microtime(true) - $start) * 1000, 2);
+
+    // Datadog: Log query timing
+    dd_timing('siakad.db.query_time', $duration_ms, array('type:fetch_all'));
+
+    // Log slow queries (> 500ms)
+    if ($duration_ms > 500) {
+        log_warning('Slow DB query detected', array(
+            'query'       => substr($sql, 0, 200),
+            'duration_ms' => $duration_ms
+        ));
+    }
+
+    // Log DB errors
+    if (!$result) {
+        log_error('Database query failed', array(
+            'query' => substr($sql, 0, 200),
+            'error' => mysqli_error($conn)
+        ));
+        dd_increment('siakad.db.error', array('type:fetch_all'));
+        return array();
+    }
+
     $rows = array();
-    if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
-            $rows[] = $row;
-        }
+    while ($row = mysqli_fetch_assoc($result)) {
+        $rows[] = $row;
     }
     return $rows;
 }

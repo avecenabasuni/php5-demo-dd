@@ -44,6 +44,9 @@ $user_initial = strtoupper(substr($user_nama, 0, 1));
             <a href="index.php?page=settings" class="sidebar-link <?php echo ($current_page === 'settings') ? 'active' : ''; ?>">
                 <span class="nav-icon">⚙️</span> Feature Flags
             </a>
+            <a href="index.php?page=demo_errors" class="sidebar-link <?php echo ($current_page === 'demo_errors') ? 'active' : ''; ?>">
+                <span class="nav-icon">🧪</span> Demo Errors
+            </a>
         <?php endif; ?>
 
         <?php if ($user_role === 'dosen'): ?>
